@@ -2,7 +2,7 @@ package main
 
 import "runtime"
 
-func main() {
+func main18() {
 	done := false
 
 	go func() {
