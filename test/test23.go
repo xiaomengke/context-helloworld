@@ -1,6 +1,8 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+)
 
 func f(n int) (r int) {
 	defer func() {
@@ -17,7 +19,7 @@ func f(n int) (r int) {
 	return n + 1
 }
 
-func main() {
+func main23() {
 	fmt.Println(f(3))
 
 	var a = [5]int{1, 2, 3, 4, 5}
