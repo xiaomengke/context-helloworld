@@ -3,7 +3,7 @@ package main
 import "fmt"
 
 // 1.
-func main33() {
+func main03() {
 	s := make([]int, 5)
 	s = append(s, 1, 2, 3)
 	fmt.Println(s)
