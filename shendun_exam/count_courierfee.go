@@ -1,4 +1,4 @@
-package shendun_exam
+package main
 
 var feeSlice []int
 var (

@@ -1,4 +1,4 @@
-package shendun_exam
+package main
 
 import (
 	"database/sql"
@@ -17,23 +17,9 @@ const OrderNum = 1000
 var idSlice []int
 var db *sql.DB
 
-func generateId() []int {
-	generatedIds := make(map[int]bool)
-	userIds := make([]int, IdNum)
-	for i := 0; i < IdNum; {
-		id := rand.Intn(1000)
-		if _, exists := generatedIds[id]; !exists {
-			generatedIds[id] = true
-			userIds[i] = id
-			i++
-		}
-	}
-	return userIds
-}
-
 func GenerateOrder() {
 	var err error
-	err = initDdAndTable()
+	err = initDbAndTable()
 	checkErr(err)
 	idSlice = generateId()
 	weightSlice := make([]float64, OrderNum)
@@ -46,6 +32,41 @@ func GenerateOrder() {
 	_, err = db.Exec("CREATE INDEX uid_idx ON express_order (uid);")
 	checkErr(err)
 	db.Close()
+}
+
+func QueryOrderById(uid int) (string, error) {
+	var weightTotal float64
+	var rt string
+	var count int
+	var totalFee int
+	db, err := sql.Open("sqlite3", "./order.sqlite.db")
+	defer db.Close()
+	if err != nil {
+		return "", err
+	}
+
+	rows, err := db.Query("SELECT id, weight,created_at FROM express_order where uid=?;", uid)
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var id int
+		var weight float64
+		var createdAt time.Time
+		err := rows.Scan(&id, &weight, &createdAt)
+		if err != nil {
+			return "", err
+		}
+		weightTotal += weight
+		fee := GetCourierFee(weight)
+		totalFee += fee
+		count += 1
+		rt += fmt.Sprintf("No.%v, order id: %v, weight: %v, created time: %v, fee:%v\n", count, id, weight, createdAt, fee)
+	}
+	rt += fmt.Sprintf("total count:%v, total weight: %v, total fee: %v\n", count, weightTotal, totalFee)
+	return rt, nil
 }
 
 func insertToSql(uid []int, weight []float64) error {
@@ -65,18 +86,15 @@ func insertToSql(uid []int, weight []float64) error {
 		sql += fmt.Sprintf(",(%d,%f)", uid[rand.Intn(IdNum)], weight[i])
 	}
 	insertExpressOrder, err := db.Prepare(sql)
-	res, err := insertExpressOrder.Exec()
-	if err != nil {
-		return err
-	}
-	_, err = res.LastInsertId()
+	defer insertExpressOrder.Close()
+	_, err = insertExpressOrder.Exec()
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func initDdAndTable() error {
+func initDbAndTable() error {
 	var err error
 	db, err = sql.Open("sqlite3", "./order.sqlite.db")
 	if err != nil {
@@ -118,40 +136,18 @@ func generateWeight() (re float64) {
 	return
 }
 
-func QueryOrderById(uid int) (string, error) {
-	var err error
-	var weightTotal float64
-	var rt string
-	var count int
-	var totalFee int
-	if db == nil {
-		db, err = sql.Open("sqlite3", "./order.sqlite.db")
-		if err != nil {
-			return "", err
+func generateId() []int {
+	generatedIds := make(map[int]bool)
+	userIds := make([]int, IdNum)
+	for i := 0; i < IdNum; {
+		id := rand.Intn(99999) + 1
+		if _, exists := generatedIds[id]; !exists {
+			generatedIds[id] = true
+			userIds[i] = id
+			i++
 		}
 	}
-	rows, err := db.Query("SELECT id, weight,created_at FROM express_order where uid=?;", uid)
-	if err != nil {
-		return "", err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var id int
-		var weight float64
-		var createdAt time.Time
-		err := rows.Scan(&id, &weight, &createdAt)
-		if err != nil {
-			return "", err
-		}
-		weightTotal += weight
-		fee := GetCourierFee(weight)
-		totalFee += fee
-		count += 1
-		rt += fmt.Sprintf("No.%v, order id: %v, weight: %v, created time: %v, fee:%v\n", count, id, weight, createdAt, fee)
-	}
-	rt += fmt.Sprintf("total count:%v, total weight: %v, total fee: %v\n", count, weightTotal, totalFee)
-	return rt, nil
+	return userIds
 }
 
 func checkErr(err error) {
