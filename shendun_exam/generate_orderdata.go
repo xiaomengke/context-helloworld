@@ -12,7 +12,7 @@ import (
 const IdNum = 1000
 
 // const OrderNum = 1000000
-const OrderNum = 100
+const OrderNum = 1000
 
 var idSlice []int
 var db *sql.DB
@@ -21,7 +21,7 @@ func generateId() []int {
 	generatedIds := make(map[int]bool)
 	userIds := make([]int, IdNum)
 	for i := 0; i < IdNum; {
-		id := rand.Intn(1000000)
+		id := rand.Intn(1000)
 		if _, exists := generatedIds[id]; !exists {
 			generatedIds[id] = true
 			userIds[i] = id
@@ -36,21 +36,36 @@ func GenerateOrder() {
 	err = initDdAndTable()
 	checkErr(err)
 	idSlice = generateId()
+	weightSlice := make([]float64, OrderNum)
 	for i := 0; i < OrderNum; i++ {
-		err = insertToSql(idSlice[rand.Intn(IdNum)], generateWeight())
-		checkErr(err)
+		weightSlice[i] = generateWeight()
 	}
+	err = insertToSql(idSlice, weightSlice)
+	checkErr(err)
+
 	_, err = db.Exec("CREATE INDEX uid_idx ON express_order (uid);")
 	checkErr(err)
 	db.Close()
 }
 
-func insertToSql(uid int, weight float64) error {
+func insertToSql(uid []int, weight []float64) error {
 	if db == nil {
 		return errors.New("db not init")
 	}
-	insertExpressOrder, err := db.Prepare("insert into express_order(uid,weight) values (?,?);")
-	res, err := insertExpressOrder.Exec(uid, weight)
+	if len(uid) == 0 {
+		return errors.New("insert error")
+	}
+	sql := "insert into express_order(uid,weight) values"
+	fmt.Println(len(weight))
+	for i := 0; i < len(weight); i++ {
+		if i == 0 {
+			sql += fmt.Sprintf("(%d,%f)", uid[rand.Intn(IdNum)], weight[i])
+			continue
+		}
+		sql += fmt.Sprintf(",(%d,%f)", uid[rand.Intn(IdNum)], weight[i])
+	}
+	insertExpressOrder, err := db.Prepare(sql)
+	res, err := insertExpressOrder.Exec()
 	if err != nil {
 		return err
 	}
